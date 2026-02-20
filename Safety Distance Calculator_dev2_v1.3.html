@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANSI B11.19 Safety Distance Calculator</title>
+    <style>
+        :root {
+            --rivian-blue: #00A1E0;
+            --dark-grey: #333;
+            --light-grey: #f4f4f4;
+            --white: #ffffff;
+            --border-color: #ddd;
+            --header-bg: #f8f9fa;
+            --highlight-bg: #e6f7ff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #eef2f5;
+            color: var(--dark-grey);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Main Layout */
+        .container {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--rivian-blue);
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+        }
+
+        h1 { margin: 0; color: var(--dark-grey); font-size: 1.8rem; }
+        h2 { font-size: 1.1rem; margin-top: 0; color: #555; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 15px;}
+        p.subtitle { margin: 5px 0 0; color: #666; font-size: 0.9rem; }
+
+        .print-btn {
+            background-color: #fff;
+            border: 1px solid var(--rivian-blue);
+            color: var(--rivian-blue);
+            padding: 5px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .print-btn:hover { background-color: var(--rivian-blue); color: white; }
+
+        /* Calculator Sections */
+        .calc-section {
+            background: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .doc-header { border-left: 4px solid var(--rivian-blue); }
+
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            color: #444;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--rivian-blue);
+            box-shadow: 0 0 0 2px rgba(0,161,224,0.2);
+        }
+
+        /* Help Tooltips */
+        .help-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            background: #999;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 16px;
+            font-size: 11px;
+            cursor: help;
+            margin-left: 5px;
+        }
+
+        .help-text {
+            display: none;
+            font-size: 0.85rem;
+            color: #666;
+            background: #fff;
+            border-left: 3px solid var(--rivian-blue);
+            padding: 5px 10px;
+            margin-top: 5px;
+        }
+
+        /* Results Box */
+        .result-box {
+            background: var(--dark-grey);
+            color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .result-value { font-size: 2.5rem; font-weight: bold; color: var(--rivian-blue); }
+        .result-equation { font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; color: #bbb; margin-top: 10px; }
+
+        /* Side Panel (Reference Guide) */
+        .side-panel {
+            width: 650px;
+            background: var(--white);
+            border-left: 1px solid var(--border-color);
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            position: fixed;
+            right: -670px;
+            top: 0;
+            bottom: 0;
+            transition: right 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .side-panel.open { right: 0; }
+
+        .panel-header {
+            padding: 20px;
+            background: var(--rivian-blue);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+        .panel-content { padding: 20px; overflow-y: auto; flex: 1; }
+
+        .panel-trigger {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            background: var(--rivian-blue);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 900;
+            font-weight: bold;
+        }
+
+        /* Tables in Panel */
+        .ref-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 15px; }
+        .ref-table th, .ref-table td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+        .ref-table th { background-color: var(--header-bg); font-weight: 600;}
+        .ref-table td:first-child { background-color: var(--header-bg); font-weight: 600; text-align: left;}
+        .table-scroll { overflow-x: auto; border: 1px solid #ccc; margin-bottom: 10px; }
+        .i3-table, .e3-table { min-width: 100%; font-size: 0.75rem; }
+        .i3-table th, .e3-table th { background-color: #e0e0e0; vertical-align: middle; }
+        .i3-table tr:nth-child(even), .e3-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .red-line-top { border-top: 2px solid red !important; }
+        .red-line-bottom { border-bottom: 2px solid red !important; }
+        .red-line-right { border-right: 2px solid red !important; }
+
+        .pref-value-box { background-color: #eef; padding: 10px; border-radius: 4px; margin: 10px 0; border-left: 4px solid var(--rivian-blue); }
+
+        /* Utility */
+        .hidden { display: none !important; }
+        .unit-label { position: absolute; right: 10px; top: 35px; color: #888; font-size: 0.8rem;}
+        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0;}
+        
+        /* Default hide print report on screen */
+        .print-only { display: none; }
+
+        /* ---------------- PRINT STYLES ---------------- */
+        @media print {
+            @page { size: letter portrait; margin: 0.5in; }
+            
+            /* Hide the interactive UI entirely */
+            .container, .side-panel, .panel-trigger { display: none !important; }
+            
+            /* Setup the body for printing */
+            body { 
+                background: white; 
+                color: black; 
+                margin: 0; 
+                padding: 0; 
+                font-size: 11pt; 
+                height: 100vh;
+                display: block; 
+                overflow: visible;
+            }
+
+            /* Reveal the dedicated print layout */
+            .print-only { 
+                display: flex; 
+                flex-direction: column; 
+                height: 100%; 
+                width: 100%; 
+            }
+
+            .print-header { 
+                border-bottom: 2px solid var(--rivian-blue); 
+                margin-bottom: 20px; 
+                padding-bottom: 10px; 
+            }
+            .print-header h2 { margin: 0 0 5px 0; font-size: 1.6rem; color: #000; border-bottom: none; }
+            .print-header p { margin: 2px 0; color: #444; font-size: 0.9rem;}
+
+            .print-section { margin-bottom: 20px; }
+            .print-section h3 { 
+                font-size: 1.1rem; 
+                border-bottom: 1px solid #ccc; 
+                padding-bottom: 5px; 
+                margin-bottom: 10px;
+                color: #000;
+            }
+
+            .print-table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin-bottom: 10px; 
+            }
+            .print-table th, .print-table td { 
+                text-align: left; 
+                padding: 10px; 
+                border: 1px solid #ddd; 
+            }
+            .print-table th { 
+                width: 25%; 
+                background-color: #f4f4f4 !important; 
+                font-weight: 600; 
+                -webkit-print-color-adjust: exact; 
+                color: #000;
+            }
+            .print-table td { color: #222; }
+
+            .result-box-print { 
+                border: 2px solid var(--dark-grey); 
+                padding: 20px; 
+                text-align: center; 
+                background-color: #f9f9f9 !important; 
+                -webkit-print-color-adjust: exact; 
+                border-radius: 8px;
+            }
+            .print-equation { 
+                font-family: 'Courier New', Courier, monospace; 
+                font-size: 1.1rem; 
+                margin-bottom: 10px; 
+                color: #444; 
+            }
+            .print-final { 
+                font-size: 2.5rem; 
+                font-weight: bold; 
+                color: var(--rivian-blue) !important; 
+                -webkit-print-color-adjust: exact;
+            }
+
+            .print-footer { 
+                margin-top: auto; /* Pushes to bottom of page */
+                display: flex; 
+                justify-content: space-between; 
+                padding-top: 60px; 
+            }
+            .sig-line { 
+                border-top: 1px solid #000; 
+                width: 30%; 
+                text-align: center; 
+                padding-top: 5px; 
+                font-size: 0.9rem; 
+                color: #000;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div>
+                <h1>Safety Distance Calculator</h1>
+                <p class="subtitle">"document number" | ANSI B11.19-2019 (R2024)</p>
+            </div>
+            <button class="print-btn" onclick="window.print()">🖨️ Print / Save PDF</button>
+        </header>
+
+        <form id="safetyForm">
+            <div class="calc-section doc-header">
+                <h2>Documentation Reference</h2>
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <label>Line / Area / Cell</label>
+                        <input type="text" id="docLine" placeholder="e.g. Body Shop / Cell 10">
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Asset / Machine ID</label>
+                        <input type="text" id="docAsset" placeholder="e.g. R1-1234">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <label>Safeguarding Device Name / Tag</label>
+                        <input type="text" id="docDevice" placeholder="e.g. LC-01 (Light Curtain)">
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Identified Hazard</label>
+                        <input type="text" id="docHazard" placeholder="e.g. Pinch Point / Robot Motion">
+                    </div>
+                </div>
+            </div>
+
+            <div class="calc-section">
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <label>Approach Speed (K) <span class="help-icon" title="Speed of body movement">?</span></label>
+                        <input type="number" id="K" value="1600" step="1">
+                        <span class="unit-label" id="unit-speed">mm/s</span>
+                        <div class="help-text">Standard: 1600 mm/s. See Reference Guide Annex H.3.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calc-section">
+                <h2>Total Stopping Time (T) <small style="font-weight:normal; font-size:0.8rem">(See Annex H.4)</small></h2>
+                <p style="font-size:0.8rem; color:#666;">Enter all times in milliseconds (ms).</p>
+                
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <label>Device Reaction (Td)</label>
+                        <input type="number" id="Td" value="100" placeholder="e.g. Light curtain time">
+                        <div class="help-text">Max reaction time stated by the supplier. Preferred default: 100ms.</div>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Interface Reaction (Ti)</label>
+                        <input type="number" id="Ti" value="20" placeholder="e.g. Safety relay">
+                        <div class="help-text">Delay of interface between device and control system. Preferred default: 20ms.</div>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Control System (Tc)</label>
+                        <input type="number" id="Tc" value="0.05" placeholder="e.g. PLC scan time">
+                        <div class="help-text">Delay from inputs to logic initiation. Preferred default: 0.05ms.</div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <label>Machine Stop Time (Ts)</label>
+                        <input type="number" id="Ts" value="0" placeholder="Measured Stop Time">
+                        <div class="help-text">Worst case time for hazardous motion to cease after actuator is de-energized. Measured via stop-time analysis.</div>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Monitor Factor (Tscm)</label>
+                        <input type="number" id="Tscm" value="0" placeholder="Brake monitor margin">
+                        <div class="help-text">Time added by safe condition/brake monitoring systems (degradation margin).</div>
+                    </div>
+                </div>
+                <div style="text-align: right; font-weight: bold; color: var(--rivian-blue);">
+                    Total Time (T): <span id="totalTimeDisplay">0</span> ms
+                </div>
+            </div>
+
+            <div class="calc-section">
+                <h2>Device Configuration & Reach (d<sub>ds</sub>) <small style="font-weight:normal; font-size:0.8rem">(See Annex I)</small></h2>
+                
+                <div class="input-wrapper" style="margin-bottom: 20px;">
+                    <label>Select Engineering Control (Device Type)</label>
+                    <select id="deviceType">
+                        <option value="vertical">Vertical Presence Sensing (e.g., Light Curtain)</option>
+                        <option value="horizontal">Horizontal Presence Sensing (e.g., Area Scanner)</option>
+                        <option value="twohand">Two-Hand Control</option>
+                        <option value="single">Single Actuating Control (Hand/Foot)</option>
+                        <option value="mat">Safety Mat</option>
+                        <option value="interlock">Interlocked Guard (Reaching Through)</option>
+                    </select>
+                </div>
+
+                <div id="dynamicInputs" class="input-group">
+                    </div>
+            </div>
+
+            <div class="calc-section">
+                <h2>Supplemental Distance (Z) <small style="font-weight:normal; font-size:0.8rem">(See Annex H.6)</small></h2>
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <label>Measurement Error (Zm)</label>
+                        <input type="number" id="Zm" value="0">
+                        <span class="unit-label unit-dist">mm</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Other Factors (Zr, Zf, Zb)</label>
+                        <input type="number" id="Zother" value="0">
+                        <span class="unit-label unit-dist">mm</span>
+                        <div class="help-text">Reflection errors, lack of ground clearance, brake wear factors.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-box">
+                <label style="color: #bbb;">Minimum Safety Distance (D)</label>
+                <div class="result-value" id="finalResult">0 mm</div>
+                <div class="result-equation" id="equationDisplay">D = (K x T) + dds + Z</div>
+            </div>
+        </form>
+    </div>
+
+    <button class="panel-trigger" onclick="togglePanel()">? Reference Guide</button>
+    <div class="side-panel" id="sidePanel">
+        <div class="panel-header">
+            <h3>Reference Guide (ANSI B11.19) | Section 9.6, Annex H, Annex I</h3>
+            <button class="close-btn" onclick="togglePanel()">&times;</button>
+        </div>
+        <div class="panel-content">
+            
+            <div style="background-color:#eef; padding:10px; border-radius:4px; margin-bottom: 15px;">
+                <strong>Note on Units:</strong><br>
+                All calculations in this tool are strictly metric (mm, mm/s). To convert from inches to millimeters, use the formula:<br>
+                <strong>mm = inches &times; 25.4</strong>
+            </div>
+
+            <h4>1. The Core Formula (Annex H)</h4>
+            <p><strong>D = (K × T) + d<sub>ds</sub> + Z</strong></p>
+            <ul>
+                <li><strong>K:</strong> Approach Speed (Usually 1600 mm/s). See Annex H.3.</li>
+                <li><strong>T:</strong> Total Stopping Time (See section 2 below).</li>
+                <li><strong>d<sub>ds</sub>:</strong> Reach Distance (Depth Penetration). Depends on device type (Annex I).</li>
+                <li><strong>Z:</strong> Supplemental factors (Measurement error, brake wear, etc.). See Annex H.6.</li>
+            </ul>
+
+            <hr>
+
+            <h4>2. Total Stopping Time (T)</h4>
+            <p><em>Annex H.4</em></p>
+            <p><strong>T = Td + Ti + Tc + Ts + Tscm</strong></p>
+            <ul>
+                <li><strong>Td (Device):</strong> Reaction time of the device. <em>Source: Supplier Specification.</em></li>
+                <li><strong>Ti (Interface):</strong> Reaction time of the safety interface. <em>Source: Component Datasheet.</em></li>
+                <li><strong>Tc (Control):</strong> Reaction time of the control system. <em>Source: System Design/Config.</em></li>
+                <li><strong>Ts (Machine):</strong> Physical stop time of the machine. <em>Source: Stop-time Measurement.</em></li>
+                <li><strong>Tscm (Monitor):</strong> Safety factor for degradation of braking system.</li>
+            </ul>
+            
+            <hr>
+
+            <h4>3. Vertical Sensing Fields (Table I.3)</h4>
+            <p><em>Reach Through (d<sub>dt</sub>):</em> Based on detection capability (d<sub>e</sub>).</p>
+            <ul>
+                <li>If d<sub>e</sub> ≤ 64mm: <br> <code>d<sub>dt</sub> = 3.4 × (d_e - 7mm)</code></li>
+                <li>If 64mm < d<sub>e</sub> ≤ 600mm: <br> <code>d<sub>dt</sub> = 850mm</code></li>
+            </ul>
+            
+            <p><em>Reach Over (d<sub>do</sub>):</em> <strong>Table I.3</strong></p>
+            <div class="table-scroll">
+                <table class="ref-table i3-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="width: 15%">Height of Hazard (Hh)</th>
+                            <th colspan="12">Height of upper edge of sensing field (Hdt)</th>
+                        </tr>
+                        <tr>
+                            <th>900</th><th>1000</th><th>1100</th><th>1200</th><th>1300</th><th>1400</th><th>1600</th><th>1800</th><th>2000</th><th>2200</th><th>2400</th><th>2600</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>2600</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>2500</td><td>400</td><td>400</td><td>350</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td>250</td><td>150</td><td>100</td><td>0</td></tr>
+                        <tr><td>2400</td><td>550</td><td>550</td><td>550</td><td>500</td><td>450</td><td>450</td><td>400</td><td>400</td><td>300</td><td>250</td><td>100</td><td>0</td></tr>
+                        <tr><td>2200</td><td>800</td><td>750</td><td>750</td><td>700</td><td>650</td><td>650</td><td>600</td><td>550</td><td>400</td><td>250</td><td>0</td><td>0</td></tr>
+                        <tr><td>2000</td><td>950</td><td>950</td><td>850</td><td>850</td><td>800</td><td>750</td><td>700</td><td>550</td><td>400</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>1800</td><td>1100</td><td>1100</td><td>950</td><td>950</td><td>850</td><td>800</td><td>750</td><td>550</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>1600</td><td>1150</td><td>1150</td><td>1100</td><td>1000</td><td>900</td><td>850</td><td>750</td><td>450</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>1400</td><td>1200</td><td>1200</td><td>1100</td><td>1000</td><td>900</td><td>850</td><td>650</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>1200</td><td>1200</td><td>1200</td><td>1100</td><td>1000</td><td>850</td><td>800</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>1000</td><td>1200</td><td>1150</td><td>1050</td><td>950</td><td>750</td><td>700</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>800</td><td>1150</td><td>1050</td><td>950</td><td>800</td><td>500</td><td>450</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>600</td><td>1050</td><td>950</td><td>750</td><td>550</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>400</td><td>900</td><td>700</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>200</td><td>600</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                        <tr><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p style="font-size:0.75rem; color:#666;">(Dimensions in mm)</p>
+
+            <hr>
+
+            <h4>4. Reaching Through Guards (Table E.3)</h4>
+            <p><em>Annex E</em></p>
+            <div class="table-scroll">
+                <table class="ref-table e3-table">
+                    <thead>
+                        <tr>
+                            <th>Part of body</th>
+                            <th>Opening Size (e) <br>(mm)</th>
+                            <th>Slot <br>(mm)</th>
+                            <th>Square <br>(mm)</th>
+                            <th>Round <br>(mm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td rowspan="2">Fingertip</td>
+                            <td>0 < e ≤ 4</td>
+                            <td>≥ 2</td>
+                            <td>≥ 2</td>
+                            <td>≥ 2</td>
+                        </tr>
+                        <tr>
+                            <td>4 < e ≤ 6</td>
+                            <td>≥ 10</td>
+                            <td>≥ 5</td>
+                            <td>≥ 5</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="2">Finger up to knuckle</td>
+                            <td>6 < e ≤ 8</td>
+                            <td>≥ 20</td>
+                            <td>≥ 15</td>
+                            <td>≥ 5</td>
+                        </tr>
+                        <tr>
+                            <td class="red-line-bottom">8 < e ≤ 10</td>
+                            <td class="red-line-bottom">≥ 80</td>
+                            <td class="red-line-bottom">≥ 25</td>
+                            <td class="red-line-bottom">≥ 20</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="3">Hand</td>
+                            <td>10 < e ≤ 12</td>
+                            <td class="red-line-right">≥ 100</td>
+                            <td>≥ 80</td>
+                            <td>≥ 80</td>
+                        </tr>
+                        <tr>
+                            <td>12 < e ≤ 20</td>
+                            <td class="red-line-right">≥ 120</td>
+                            <td>≥ 120</td>
+                            <td>≥ 120</td>
+                        </tr>
+                        <tr>
+                            <td class="red-line-bottom">20 < e ≤ 30</td>
+                            <td class="red-line-right red-line-bottom">≥ 850</td>
+                            <td class="red-line-bottom">≥ 120</td>
+                            <td class="red-line-bottom">≥ 120</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="2">Arm up to shoulder</td>
+                            <td>30 < e ≤ 40</td>
+                            <td class="red-line-right">≥ 850</td>
+                            <td class="red-line-bottom">≥ 200</td>
+                            <td class="red-line-bottom">≥ 120</td>
+                        </tr>
+                        <tr>
+                            <td>40 < e ≤ 120</td>
+                            <td class="red-line-right">≥ 850</td>
+                            <td>≥ 850</td>
+                            <td>≥ 850</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="printReport" class="print-only">
+        <div class="print-header">
+            <h2>Safety Distance Calculation Report</h2>
+            <p>Standard: ANSI B11.19-2019 (R2024)</p>
+            <p>Date of Assessment: <span id="printDate"></span></p>
+        </div>
+        
+        <div class="print-section">
+            <h3>1. Assessment Details</h3>
+            <table class="print-table">
+                <tr>
+                    <th>Line / Area / Cell:</th><td id="p_docLine"></td>
+                    <th>Asset / Machine ID:</th><td id="p_docAsset"></td>
+                </tr>
+                <tr>
+                    <th>Device Name / Tag:</th><td id="p_docDevice"></td>
+                    <th>Identified Hazard:</th><td id="p_docHazard"></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="print-section">
+            <h3>2. Parameter Breakdown</h3>
+            <table class="print-table">
+                <tr>
+                    <th>Approach Speed (K):</th><td id="p_K"></td>
+                </tr>
+                <tr>
+                    <th>Total Stopping Time (T):</th>
+                    <td>
+                        <span id="p_T"></span> ms <br>
+                        <span style="font-size: 0.9rem; color: #555;">(Td: <span id="p_Td"></span>, Ti: <span id="p_Ti"></span>, Tc: <span id="p_Tc"></span>, Ts: <span id="p_Ts"></span>, Tscm: <span id="p_Tscm"></span>)</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Device Reach (dds):</th><td id="p_dds"></td>
+                </tr>
+                <tr>
+                    <th>Supplemental Distance (Z):</th>
+                    <td>
+                        <span id="p_Z"></span> mm <br>
+                        <span style="font-size: 0.9rem; color: #555;">(Zm: <span id="p_Zm"></span>, Zother: <span id="p_Zother"></span>)</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="print-section result-box-print">
+            <h3>3. Minimum Safety Distance (D)</h3>
+            <div class="print-equation" id="p_equation"></div>
+            <div class="print-final" id="p_final"></div>
+        </div>
+
+        <div class="print-footer">
+            <div class="sig-line">Evaluated By (Print Name)</div>
+            <div class="sig-line">Signature</div>
+            <div class="sig-line">Date</div>
+        </div>
+    </div>
+
+    <script>
+        // --- Init & Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set today's date for print layout
+            document.getElementById('printDate').innerText = new Date().toLocaleDateString();
+            
+            // Build dynamic UI for initially selected device
+            renderDeviceInputs(); 
+            
+            // Event Delegation: Listen for input/change across the whole form
+            const form = document.getElementById('safetyForm');
+            form.addEventListener('input', handleFormUpdate);
+            form.addEventListener('change', (e) => {
+                if(e.target.id === 'deviceType') {
+                    renderDeviceInputs();
+                }
+                handleFormUpdate();
+            });
+
+            // Help Text Toggle
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('help-icon')) {
+                    const wrapper = e.target.closest('.input-wrapper');
+                    const text = wrapper.querySelector('.help-text');
+                    if(text) text.style.display = text.style.display === 'block' ? 'none' : 'block';
+                }
+            });
+
+            // Initial math setup
+            handleFormUpdate();
+        });
+
+        // --- Render Dynamic Device Inputs ---
+        function renderDeviceInputs() {
+            const type = document.getElementById('deviceType').value;
+            const container = document.getElementById('dynamicInputs');
+            let html = '';
+
+            if (type === 'vertical') {
+                html += `
+                    <div class="input-wrapper">
+                        <label>Effective Detection Capability (d<sub>e</sub>)</label>
+                        <input type="number" id="de" value="14" step="1">
+                        <span class="unit-label unit-dist">mm</span>
+                        <div class="help-text">Standard finger: 14mm, Hand: 30mm. (Annex I.3.2)</div>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Is Reach Over Possible?</label>
+                        <select id="reachOver">
+                            <option value="no">No (High Guard)</option>
+                            <option value="yes">Yes (Use Table I.3)</option>
+                        </select>
+                        <div class="help-text">If the top beam is low enough to reach over, enter the Table I.3 value below.</div>
+                    </div>
+                    <div class="input-wrapper hidden" id="manualReachOverDiv">
+                        <label>Reach Over Distance (Table I.3)</label>
+                        <input type="number" id="manualReachOver" value="0">
+                        <span class="unit-label unit-dist">mm</span>
+                    </div>
+                `;
+            } else if (type === 'horizontal') {
+                html += `
+                    <div class="input-wrapper">
+                        <label>Height of Plane (H)</label>
+                        <input type="number" id="Hs" value="300">
+                        <span class="unit-label unit-dist">mm</span>
+                        <div class="help-text">Max 1000mm. Typically 300mm or less to prevent crawling under.</div>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Reach Distance (Standard)</label>
+                        <input type="number" id="dds_manual" value="1200" readonly style="background:#f4f4f4">
+                        <span class="unit-label unit-dist">mm</span>
+                    </div>
+                `;
+            } else if (type === 'twohand') {
+                html += `
+                    <div class="input-wrapper">
+                        <label>Are controls shrouded?</label>
+                        <select id="shrouded">
+                            <option value="no">No</option>
+                            <option value="yes">Yes (Restricted)</option>
+                        </select>
+                    </div>
+                `;
+            } else if (type === 'single') {
+                html += `
+                    <div class="input-wrapper">
+                        <label>Actuator Type</label>
+                        <select id="actuatorType">
+                            <option value="hand">Hand Operated</option>
+                            <option value="foot">Foot Operated</option>
+                        </select>
+                    </div>
+                `;
+            } else if (type === 'mat') {
+                html += `
+                    <div class="input-wrapper">
+                        <label>Reach Distance</label>
+                        <input type="number" id="dds_manual" value="1200" readonly style="background:#f4f4f4">
+                        <span class="unit-label unit-dist">mm</span>
+                    </div>
+                `;
+            } else if (type === 'interlock') {
+                html += `
+                    <div class="input-wrapper">
+                        <label>Guard Opening Size (e)</label>
+                        <input type="number" id="gapSize" value="0">
+                        <span class="unit-label unit-dist">mm</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Manual Reach Distance (Table E.3)</label>
+                        <input type="number" id="manualReachThrough" value="0">
+                        <span class="unit-label unit-dist">mm</span>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+            
+            // Re-attach conditional listener for 'Reach Over' specifically
+            const reachOverSelect = document.getElementById('reachOver');
+            if(reachOverSelect) {
+                reachOverSelect.addEventListener('change', (e) => {
+                    const div = document.getElementById('manualReachOverDiv');
+                    if(e.target.value === 'yes') div.classList.remove('hidden');
+                    else div.classList.add('hidden');
+                });
+            }
+        }
+
+        // --- Core Logic Flow ---
+        function handleFormUpdate() {
+            const data = extractFormData();
+            const result = calculateDistance(data);
+            updateUI(data, result);
+            updatePrintReport(data, result);
+        }
+
+        // Step 1: Extract
+        function extractFormData() {
+            return {
+                docLine: document.getElementById('docLine').value || 'N/A',
+                docAsset: document.getElementById('docAsset').value || 'N/A',
+                docDevice: document.getElementById('docDevice').value || 'N/A',
+                docHazard: document.getElementById('docHazard').value || 'N/A',
+                K: parseFloat(document.getElementById('K').value) || 0,
+                Td: parseFloat(document.getElementById('Td').value) || 0,
+                Ti: parseFloat(document.getElementById('Ti').value) || 0,
+                Tc: parseFloat(document.getElementById('Tc').value) || 0,
+                Ts: parseFloat(document.getElementById('Ts').value) || 0,
+                Tscm: parseFloat(document.getElementById('Tscm').value) || 0,
+                Zm: parseFloat(document.getElementById('Zm').value) || 0,
+                Zother: parseFloat(document.getElementById('Zother').value) || 0,
+                deviceType: document.getElementById('deviceType').value
+            };
+        }
+
+        // Step 2: Math
+        function calculateDistance(data) {
+            // Stopping Time (ms to s)
+            const T_ms = data.Td + data.Ti + data.Tc + data.Ts + data.Tscm;
+            const T_sec = T_ms / 1000;
+
+            // Supplemental Distance
+            const Z_total = data.Zm + data.Zother;
+
+            // Device Reach Distance (dds)
+            let dds = 0;
+            if (data.deviceType === 'vertical') {
+                const de = parseFloat(document.getElementById('de')?.value) || 0;
+                let d_reach_through = 0;
+
+                if (de <= 64) {
+                    d_reach_through = 3.4 * (de - 7);
+                    if (d_reach_through < 0) d_reach_through = 0;
+                } else if (de <= 600) {
+                    d_reach_through = 850; 
+                } else {
+                    d_reach_through = 1200; 
+                }
+
+                let d_reach_over = 0;
+                const reachOverSelect = document.getElementById('reachOver')?.value;
+                if (reachOverSelect === 'yes') {
+                    d_reach_over = parseFloat(document.getElementById('manualReachOver')?.value) || 0;
+                }
+                dds = Math.max(d_reach_through, d_reach_over);
+
+            } else if (data.deviceType === 'horizontal' || data.deviceType === 'mat') {
+                dds = 1200;
+            } else if (data.deviceType === 'twohand') {
+                const shrouded = document.getElementById('shrouded')?.value;
+                dds = (shrouded === 'yes') ? 0 : 550;
+            } else if (data.deviceType === 'single') {
+                const actuator = document.getElementById('actuatorType')?.value;
+                dds = (actuator === 'hand') ? 2200 : 2500;
+            } else if (data.deviceType === 'interlock') {
+                dds = parseFloat(document.getElementById('manualReachThrough')?.value) || 0;
+            }
+
+            // Core Formula
+            let D = (data.K * T_sec) + dds + Z_total;
+
+            // Minimum distance limit check for vertical
+            if (data.deviceType === 'vertical' && D < 100) {
+                D = 100; 
+            }
+
+            return {
+                T_ms: T_ms,
+                T_sec: T_sec,
+                Z_total: Z_total,
+                dds: dds,
+                D: D
+            };
+        }
+
+        // Step 3: Update Screen UI
+        function updateUI(data, result) {
+            document.getElementById('totalTimeDisplay').innerText = result.T_ms.toFixed(2);
+            document.getElementById('finalResult').innerText = result.D.toFixed(2) + " mm";
+            
+            const eqStr = `D = (${data.K} × ${result.T_sec.toFixed(3)}) + ${result.dds.toFixed(1)} + ${result.Z_total} = ${result.D.toFixed(1)} mm`;
+            document.getElementById('equationDisplay').innerText = eqStr;
+        }
+
+        // Step 4: Populate Print Template
+        function updatePrintReport(data, result) {
+            // Doc Details
+            document.getElementById('p_docLine').innerText = data.docLine;
+            document.getElementById('p_docAsset').innerText = data.docAsset;
+            document.getElementById('p_docDevice').innerText = data.docDevice;
+            document.getElementById('p_docHazard').innerText = data.docHazard;
+
+            // Parameter Details
+            document.getElementById('p_K').innerText = data.K + " mm/s";
+            
+            document.getElementById('p_T').innerText = result.T_ms;
+            document.getElementById('p_Td').innerText = data.Td;
+            document.getElementById('p_Ti').innerText = data.Ti;
+            document.getElementById('p_Tc').innerText = data.Tc;
+            document.getElementById('p_Ts').innerText = data.Ts;
+            document.getElementById('p_Tscm').innerText = data.Tscm;
+
+            document.getElementById('p_dds').innerText = result.dds.toFixed(1) + " mm";
+            
+            document.getElementById('p_Z').innerText = result.Z_total;
+            document.getElementById('p_Zm').innerText = data.Zm;
+            document.getElementById('p_Zother').innerText = data.Zother;
+
+            // Result
+            const eqStr = `D = (${data.K} × ${result.T_sec.toFixed(3)}) + ${result.dds.toFixed(1)} + ${result.Z_total}`;
+            document.getElementById('p_equation').innerText = eqStr;
+            document.getElementById('p_final').innerText = result.D.toFixed(2) + " mm";
+        }
+
+        // --- Utility ---
+        function togglePanel() {
+            const panel = document.getElementById('sidePanel');
+            panel.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>
